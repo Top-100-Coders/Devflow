@@ -1,7 +1,7 @@
 {
-  "name": "revflow-ai",
-  "displayName": "revflow.ai",
-  "description": "hello reverend",
+  "name": "devflow",
+  "displayName": "devflow",
+  "description": "devflow",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.84.0"
@@ -19,11 +19,7 @@
       },
       {
         "command": "extension.configureAndSetupProject",
-        "title": "revflow.ai"
-      },
-      {
-        "command": "revflow.ai-react",
-        "title": "revflow.ai-react"
+        "title": "devflow"
       }
     ]
   },
@@ -56,7 +52,7 @@
   "configuration": {
     "revflowAI.apiKey": {
       "type": "string",
-      "description": "ChatGPT API key for revflow-ai extension"
+      "description": "ChatGPT API key for devflow extension"
     }
   },
   "dependencies": {

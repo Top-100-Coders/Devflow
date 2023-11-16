@@ -25,7 +25,7 @@ export function activate(context: vscode.ExtensionContext) {
 
             if (!openaiApiKey) {
                 // If the user cancels or doesn't provide a key, exit
-                vscode.window.showWarningMessage('No OpenAI API key entered. Project setup canceled.');
+                vscode.window.showWarningMessage('No OpenAI API key entered. Enter a valid API to proceed.');
                 return;
             }
 
@@ -35,7 +35,7 @@ export function activate(context: vscode.ExtensionContext) {
 
         // Continue with the project setup
         const userPrompt = await vscode.window.showInputBox({
-            prompt: 'Describe your project:'
+            prompt: 'Enter your prompt:'
         });
 
         if (userPrompt) {
@@ -66,13 +66,13 @@ export function activate(context: vscode.ExtensionContext) {
                 const commandString = commandLines.join('\n');
 
                 // Run the generated commands in the terminal
-                const terminal = vscode.window.createTerminal('Project Setup');
+                const terminal = vscode.window.createTerminal('DevFlow Running');
                 terminal.sendText(commandString);
                 terminal.show();
 
-                vscode.window.showInformationMessage('Project setup complete!');
+                vscode.window.showInformationMessage('DevFlow Executed!');
             } catch (error: any) {
-                vscode.window.showErrorMessage(`Failed to set up the project: ${error.message}`);
+                vscode.window.showErrorMessage(`DevFlow failed to proceed: ${error.message}`);
             }
         } else {
             vscode.window.showWarningMessage('No project description entered. Project setup canceled.');
