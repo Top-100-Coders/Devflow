@@ -92,3 +92,48 @@ export function activate(context: vscode.ExtensionContext) {
 function displayApiResponse(response: string): void {
     // Get or create the output channel
     const outputChannel = vscode.window.createOutput
+    Channel('API Response');
+
+    // Append the response to the output channel
+    outputChannel.appendLine(response);
+
+    // Show the output channel
+    outputChannel.show(true);
+}
+
+async function generateSetupCommands(apiKey: string, projectDescription: string, responseHistory: ResponseHistoryEntry[]): Promise<string> {
+    const openaiApiEndpoint = 'https://api.openai.com/v1/completions';
+    const prompt = `Understand the user prompt and give ONLY terminal package installation codes. ${projectDescription}`;
+    
+    // Combine the current prompt with the context from response history
+    const context = responseHistory.map(entry => entry.response).join('\n');
+    const combinedPrompt = `${prompt}\n\nPrevious responses:\n${context}`;
+
+    try {
+        const response = await axios.post(
+            openaiApiEndpoint,
+            {
+                prompt: combinedPrompt,
+                model:"text-davinci-003",
+                max_tokens: 400,
+            },
+            {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`,
+                },
+            }
+        );
+
+        if (!response.data.choices  !Array.isArray(response.data.choices)) {
+            throw new Error('Unexpected OpenAI API response format');
+        }
+
+        const generatedCommands = response.data.choices.map((choice: any) => choice.text.trim()).join('\n');
+        return generatedCommands;
+    } catch (error: any) {
+        throw new Error(Failed to generate setup commands from OpenAI API: ${error.message});
+    }
+}
+
+export function deactivate() {}
