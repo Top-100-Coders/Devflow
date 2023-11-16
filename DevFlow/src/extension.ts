@@ -10,7 +10,7 @@ interface ResponseHistoryEntry {
 
 export function activate(context: vscode.ExtensionContext) {
     // Initialize or retrieve the response history from the global state
-    let responseHistory: ResponseHistoryEntry[] = context.globalState.get('responseHistory') || [];
+    let responseHistory: ResponseHistoryEntry[] = context.globalState.get('responseHistory')  [];
 
     let disposable = vscode.commands.registerCommand('extension.configureAndSetupProject', async () => {
         // Check if API key is already stored in global state
@@ -78,4 +78,17 @@ export function activate(context: vscode.ExtensionContext) {
             vscode.window.showWarningMessage('No project description entered. Project setup canceled.');
         }
     });
-	
+
+    // Add a command to clear the response history
+    let clearHistoryDisposable = vscode.commands.registerCommand('extension.clearResponseHistory', () => {
+        responseHistory = [];
+        context.globalState.update('responseHistory', responseHistory);
+        vscode.window.showInformationMessage('Response history cleared.');
+    });
+
+    context.subscriptions.push(disposable,clearHistoryDisposable);
+}
+
+function displayApiResponse(response: string): void {
+    // Get or create the output channel
+    const outputChannel = vscode.window.createOutput
