@@ -19,7 +19,11 @@
       },
       {
         "command": "extension.configureAndSetupProject",
-        "title": "devflow"
+        "title": "Run DevFlow"
+      },
+      {
+        "command": "exextension.clearResponseHistory",
+        "title": "DevFlow - Clear Response History"
       }
     ]
   },
