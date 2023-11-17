@@ -32,8 +32,6 @@ The central objective of this extension is to revolutionize file management with
 **Implementation:**
 To implement this feature, the extension introduces a prompt-driven workflow where users can express file-related commands in plain language. For instance, users can create a new file by typing "Create a new file named *filename*" or edit an existing one with a command like "Open and edit *filename*." The system dynamically interprets these prompts and executes the corresponding file operations. Additionally, it may leverage OpenAI to generate intuitive prompts that guide users through complex file manipulations. The implementation strives to create a user-friendly and efficient file management system, making routine tasks more accessible and reducing the cognitive load associated with manual file organization.
 
-### Jishnu M M @thepywizard:
-#### OpenAI Audio Transcription Integration (Under Development):
 **Objective:**
 The core objective of this extension is to seamlessly integrate OpenAI's powerful audio transcription capabilities into Visual Studio Code, enabling users to transcribe spoken words into text effortlessly. The goal is to break down barriers in communication by allowing developers to interact with their codebase through voice commands, enhancing accessibility and fostering a more dynamic coding experience.
 
