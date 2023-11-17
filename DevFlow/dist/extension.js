@@ -457,7 +457,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   VERSION: () => (/* binding */ VERSION)
 /* harmony export */ });
-const VERSION = "1.6.1";
+const VERSION = "1.6.2";
 
 /***/ }),
 /* 6 */
@@ -1495,6 +1495,7 @@ function mergeConfig(config1, config2) {
     timeout: defaultToConfig2,
     timeoutMessage: defaultToConfig2,
     withCredentials: defaultToConfig2,
+    withXSRFToken: defaultToConfig2,
     adapter: defaultToConfig2,
     responseType: defaultToConfig2,
     xsrfCookieName: defaultToConfig2,
@@ -8075,7 +8076,7 @@ const isXHRAdapterSupported = typeof XMLHttpRequest !== 'undefined';
   return new Promise(function dispatchXhrRequest(resolve, reject) {
     let requestData = config.data;
     const requestHeaders = _core_AxiosHeaders_js__WEBPACK_IMPORTED_MODULE_1__["default"].from(config.headers).normalize();
-    const responseType = config.responseType;
+    let {responseType, withXSRFToken} = config;
     let onCanceled;
     function done() {
       if (config.cancelToken) {
@@ -8211,13 +8212,16 @@ const isXHRAdapterSupported = typeof XMLHttpRequest !== 'undefined';
     // Add xsrf header
     // This is only done if running in a standard browser environment.
     // Specifically not if we're in a web worker, or react-native.
-    if (_platform_index_js__WEBPACK_IMPORTED_MODULE_3__["default"].hasStandardBrowserEnv) {
-      // Add xsrf header
-      // regarding CVE-2023-45857 config.withCredentials condition was removed temporarily
-      const xsrfValue = (0,_helpers_isURLSameOrigin_js__WEBPACK_IMPORTED_MODULE_9__["default"])(fullPath) && config.xsrfCookieName && _helpers_cookies_js__WEBPACK_IMPORTED_MODULE_10__["default"].read(config.xsrfCookieName);
+    if(_platform_index_js__WEBPACK_IMPORTED_MODULE_3__["default"].hasStandardBrowserEnv) {
+      withXSRFToken && _utils_js__WEBPACK_IMPORTED_MODULE_2__["default"].isFunction(withXSRFToken) && (withXSRFToken = withXSRFToken(config));
 
-      if (xsrfValue) {
-        requestHeaders.set(config.xsrfHeaderName, xsrfValue);
+      if (withXSRFToken || (withXSRFToken !== false && (0,_helpers_isURLSameOrigin_js__WEBPACK_IMPORTED_MODULE_9__["default"])(fullPath))) {
+        // Add xsrf header
+        const xsrfValue = config.xsrfHeaderName && config.xsrfCookieName && _helpers_cookies_js__WEBPACK_IMPORTED_MODULE_10__["default"].read(config.xsrfCookieName);
+
+        if (xsrfValue) {
+          requestHeaders.set(config.xsrfHeaderName, xsrfValue);
+        }
       }
     }
 
@@ -8309,7 +8313,7 @@ __webpack_require__.r(__webpack_exports__);
     let originURL;
 
     /**
-    * Parse a URL to discover it's components
+    * Parse a URL to discover its components
     *
     * @param {String} url The URL to be parsed
     * @returns {Object}
@@ -8377,55 +8381,45 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-
-
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (_platform_index_js__WEBPACK_IMPORTED_MODULE_0__["default"].hasStandardBrowserEnv ?
 
-// Standard browser envs support document.cookie
-  (function standardBrowserEnv() {
-    return {
-      write: function write(name, value, expires, path, domain, secure) {
-        const cookie = [];
-        cookie.push(name + '=' + encodeURIComponent(value));
+  // Standard browser envs support document.cookie
+  {
+    write(name, value, expires, path, domain, secure) {
+      const cookie = [name + '=' + encodeURIComponent(value)];
 
-        if (_utils_js__WEBPACK_IMPORTED_MODULE_1__["default"].isNumber(expires)) {
-          cookie.push('expires=' + new Date(expires).toGMTString());
-        }
+      _utils_js__WEBPACK_IMPORTED_MODULE_1__["default"].isNumber(expires) && cookie.push('expires=' + new Date(expires).toGMTString());
 
-        if (_utils_js__WEBPACK_IMPORTED_MODULE_1__["default"].isString(path)) {
-          cookie.push('path=' + path);
-        }
+      _utils_js__WEBPACK_IMPORTED_MODULE_1__["default"].isString(path) && cookie.push('path=' + path);
 
-        if (_utils_js__WEBPACK_IMPORTED_MODULE_1__["default"].isString(domain)) {
-          cookie.push('domain=' + domain);
-        }
+      _utils_js__WEBPACK_IMPORTED_MODULE_1__["default"].isString(domain) && cookie.push('domain=' + domain);
 
-        if (secure === true) {
-          cookie.push('secure');
-        }
+      secure === true && cookie.push('secure');
 
-        document.cookie = cookie.join('; ');
-      },
+      document.cookie = cookie.join('; ');
+    },
 
-      read: function read(name) {
-        const match = document.cookie.match(new RegExp('(^|;\\s*)(' + name + ')=([^;]*)'));
-        return (match ? decodeURIComponent(match[3]) : null);
-      },
+    read(name) {
+      const match = document.cookie.match(new RegExp('(^|;\\s*)(' + name + ')=([^;]*)'));
+      return (match ? decodeURIComponent(match[3]) : null);
+    },
 
-      remove: function remove(name) {
-        this.write(name, '', Date.now() - 86400000);
-      }
-    };
-  })() :
+    remove(name) {
+      this.write(name, '', Date.now() - 86400000);
+    }
+  }
 
-// Non standard browser env (web workers, react-native) lack needed support.
-  (function nonStandardBrowserEnv() {
-    return {
-      write: function write() {},
-      read: function read() { return null; },
-      remove: function remove() {}
-    };
-  })());
+  :
+
+  // Non-standard browser env (web workers, react-native) lack needed support.
+  {
+    write() {},
+    read() {
+      return null;
+    },
+    remove() {}
+  });
+
 
 
 /***/ }),
@@ -8808,72 +8802,83 @@ __webpack_require__.r(__webpack_exports__);
 
 
 function activate(context) {
-    let responseHistory = context.globalState.get("responseHistory") || [];
-    let panel = vscode__WEBPACK_IMPORTED_MODULE_0__.window.createWebviewPanel("promptPanel", "Prompt", vscode__WEBPACK_IMPORTED_MODULE_0__.ViewColumn.Two, {});
-    let disposable = vscode__WEBPACK_IMPORTED_MODULE_0__.commands.registerCommand("extension.configureAndSetupProject", async () => {
-        let openaiApiKey = context.globalState.get("openaiApiKey");
+    // Initialize or retrieve the response history from the global state
+    let responseHistory = context.globalState.get('responseHistory') || [];
+    let disposable = vscode__WEBPACK_IMPORTED_MODULE_0__.commands.registerCommand('extension.configureAndSetupProject', async () => {
+        // Check if API key is already stored in global state
+        let openaiApiKey = context.globalState.get('openaiApiKey');
         if (!openaiApiKey) {
+            // If not stored, prompt the user to enter the API key
             openaiApiKey = await vscode__WEBPACK_IMPORTED_MODULE_0__.window.showInputBox({
-                prompt: "Enter your OpenAI API key:",
+                prompt: 'Enter your OpenAI API key:',
                 password: true,
             });
             if (!openaiApiKey) {
-                vscode__WEBPACK_IMPORTED_MODULE_0__.window.showWarningMessage("No OpenAI API key entered. Project setup canceled.");
+                // If the user cancels or doesn't provide a key, exit
+                vscode__WEBPACK_IMPORTED_MODULE_0__.window.showWarningMessage('No OpenAI API key entered. Enter a valid API to proceed.');
                 return;
             }
-            context.globalState.update("openaiApiKey", openaiApiKey);
+            // Save the API key to global state for future use
+            context.globalState.update('openaiApiKey', openaiApiKey);
         }
+        // Continue with the project setup
         const userPrompt = await vscode__WEBPACK_IMPORTED_MODULE_0__.window.showInputBox({
-            prompt: "Describe your project:",
+            prompt: 'Enter your prompt:'
         });
         if (userPrompt) {
-            const customPrompt = `The following is the user prompt. You should give the complete code a noob needs to execute line by line,THERE SHOULD NOT BE ANY OTHER CHARACTER BEFORE COMMANDS IN EACH LINE: "${userPrompt}"`;
+            const customPrompt = `The following is the user prompt. You should give the complete code a noob needs to execute line by line,THERE SHOULD NOT BE ANY OTHER CHARACTER BEFORE COMMANDS IN EACH LINE:  "${userPrompt}"`;
             try {
                 const response = await generateSetupCommands(openaiApiKey, customPrompt, responseHistory);
+                // Save the response to response history with a timestamp
                 const timestamp = Date.now();
                 responseHistory.push({ timestamp, response });
+                // Limit the response history to the last two entries
                 responseHistory = responseHistory.slice(-2);
-                context.globalState.update("responseHistory", responseHistory);
+                context.globalState.update('responseHistory', responseHistory);
+                // Display the response in a new webview panel
                 displayApiResponse(response);
-                panel.webview.html = `<h1>${response}</h1>`;
-                const lines = response.split("\n");
+                const lines = response.split('\n');
+                // Use regular expressions to filter out lines that seem to be commands
                 const commandLines = lines
-                    .map((line) => line.replace(/^\s*\d+[.)]\s*/, ""))
-                    .filter((line) => line.trim() !== "");
-                const commandString = commandLines.join("\n");
-                const terminal = vscode__WEBPACK_IMPORTED_MODULE_0__.window.createTerminal("Project Setup");
+                    .map(line => line.replace(/^\s*\d+[.)]\s*/, '')) // Remove leading numbers with dot or parenthesis
+                    .filter(line => line.trim() !== ''); // Filter out empty lines after removal
+                // Join the command lines into a single string
+                const commandString = commandLines.join('\n');
+                // Run the generated commands in the terminal
+                const terminal = vscode__WEBPACK_IMPORTED_MODULE_0__.window.createTerminal('DevFlow Running');
                 terminal.sendText(commandString);
                 terminal.show();
-                vscode__WEBPACK_IMPORTED_MODULE_0__.window.showInformationMessage("Project setup complete!");
+                vscode__WEBPACK_IMPORTED_MODULE_0__.window.showInformationMessage('DevFlow Executed!');
             }
             catch (error) {
-                vscode__WEBPACK_IMPORTED_MODULE_0__.window.showErrorMessage(`Failed to set up the project: ${error.message}`);
+                vscode__WEBPACK_IMPORTED_MODULE_0__.window.showErrorMessage(`DevFlow failed to proceed: ${error.message}`);
             }
         }
         else {
-            vscode__WEBPACK_IMPORTED_MODULE_0__.window.showWarningMessage("No project description entered. Project setup canceled.");
+            vscode__WEBPACK_IMPORTED_MODULE_0__.window.showWarningMessage('No project description entered. Project setup canceled.');
         }
     });
-    let clearHistoryDisposable = vscode__WEBPACK_IMPORTED_MODULE_0__.commands.registerCommand("extension.clearResponseHistory", () => {
+    // Add a command to clear the response history
+    let clearHistoryDisposable = vscode__WEBPACK_IMPORTED_MODULE_0__.commands.registerCommand('extension.clearResponseHistory', () => {
         responseHistory = [];
-        context.globalState.update("responseHistory", responseHistory);
-        vscode__WEBPACK_IMPORTED_MODULE_0__.window.showInformationMessage("Response history cleared.");
+        context.globalState.update('responseHistory', responseHistory);
+        vscode__WEBPACK_IMPORTED_MODULE_0__.window.showInformationMessage('Response history cleared.');
     });
-    let resetApiKeyDisposable = vscode__WEBPACK_IMPORTED_MODULE_0__.commands.registerCommand("extension.resetOpenApiKey", () => {
-        context.globalState.update("openaiApiKey", undefined);
-        vscode__WEBPACK_IMPORTED_MODULE_0__.window.showInformationMessage("OpenAI API key cleared.");
-    });
-    context.subscriptions.push(disposable, clearHistoryDisposable, resetApiKeyDisposable, panel);
+    context.subscriptions.push(disposable, clearHistoryDisposable);
 }
 function displayApiResponse(response) {
-    const outputChannel = vscode__WEBPACK_IMPORTED_MODULE_0__.window.createOutputChannel("API Response");
+    // Get or create the output channel
+    const outputChannel = vscode__WEBPACK_IMPORTED_MODULE_0__.window.createOutputChannel('API Response');
+    // Append the response to the output channel
     outputChannel.appendLine(response);
+    // Show the output channel
     outputChannel.show(true);
 }
 async function generateSetupCommands(apiKey, projectDescription, responseHistory) {
-    const openaiApiEndpoint = "https://api.openai.com/v1/completions";
+    const openaiApiEndpoint = 'https://api.openai.com/v1/completions';
     const prompt = `Understand the user prompt and give ONLY terminal package installation codes. ${projectDescription}`;
-    const context = responseHistory.map((entry) => entry.response).join("\n");
+    // Combine the current prompt with the context from response history
+    const context = responseHistory.map(entry => entry.response).join('\n');
     const combinedPrompt = `${prompt}\n\nPrevious responses:\n${context}`;
     try {
         const response = await axios__WEBPACK_IMPORTED_MODULE_1__["default"].post(openaiApiEndpoint, {
@@ -8882,16 +8887,14 @@ async function generateSetupCommands(apiKey, projectDescription, responseHistory
             max_tokens: 400,
         }, {
             headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`,
             },
         });
         if (!response.data.choices || !Array.isArray(response.data.choices)) {
-            throw new Error("Unexpected OpenAI API response format");
+            throw new Error('Unexpected OpenAI API response format');
         }
-        const generatedCommands = response.data.choices
-            .map((choice) => choice.text.trim())
-            .join("\n");
+        const generatedCommands = response.data.choices.map((choice) => choice.text.trim()).join('\n');
         return generatedCommands;
     }
     catch (error) {
