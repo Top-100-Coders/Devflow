@@ -88,12 +88,12 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.showInformationMessage('Response history cleared.');
     });
 
-    context.subscriptions.push(disposable,clearHistoryDisposable);
-    context.subscriptions.push(
-        vscode.commands.registerCommand('transcribeAudio.transcribe', async () => {
-            await transcribeAudio(context);
-        })
-    );
+    // Add a command to transcribe audio
+    let transcribeAudioDisposable = vscode.commands.registerCommand('extension.transcribeAudio', async () => {
+        await transcribeAudio(context);
+    });
+
+    context.subscriptions.push(transcribeAudioDisposable);
 }
 
 function displayApiResponse(response: string): void {
@@ -105,6 +105,54 @@ function displayApiResponse(response: string): void {
 
     // Show the output channel
     outputChannel.show(true);
+}
+
+async function transcribeAudio(context: vscode.ExtensionContext) {
+  const options: vscode.OpenDialogOptions = {
+    canSelectFiles: true,
+    canSelectFolders: false,
+    canSelectMany: false,
+    filters: {
+      'Audio files': ['wav', 'mp3','ogg'],
+    },
+  };
+
+  try {
+    const audioFileUri = await vscode.window.showOpenDialog(options);
+    if (audioFileUri && audioFileUri[0]) {
+      const audioFilePath = audioFileUri[0].fsPath;
+
+      const apiKey = context.globalState.get<string>('openaiApiKey');
+      const apiUrl = 'https://api.openai.com/v1/audio/transcriptions';
+
+      const config = {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'multipart/form-data',
+        },
+      };
+
+
+      const audioFile = fs.readFileSync(audioFilePath);
+      const audioBlob = new Blob([audioFile]);
+
+      const formData = new FormData();
+      formData.append('model', 'whisper-1');
+      formData.append('file', audioBlob, path.basename(audioFilePath));
+
+      const response = await axios.post(apiUrl, formData, config);
+      const transcript = response.data.text;
+
+      const outputChannel = vscode.window.createOutputChannel('Transcription');
+      outputChannel.appendLine(transcript);
+      outputChannel.show();
+    } else {
+      vscode.window.showInformationMessage('No audio file selected');
+    }
+  } catch (error) {
+    vscode.window.showErrorMessage('Error transcribing audio');
+    console.error(error);
+  }
 }
 
 async function generateSetupCommands(apiKey: string, projectDescription: string, responseHistory: ResponseHistoryEntry[]): Promise<string> {
@@ -140,54 +188,6 @@ async function generateSetupCommands(apiKey: string, projectDescription: string,
     } catch (error: any) {
         throw new Error(`Failed to generate setup commands from OpenAI API: ${error.message}`);
     }
-    
 }
-
-async function transcribeAudio(context: vscode.ExtensionContext) {
-    const options: vscode.OpenDialogOptions = {
-      canSelectFiles: true,
-      canSelectFolders: false,
-      canSelectMany: false,
-      filters: {
-        'Audio files': ['wav', 'mp3','ogg'],
-      },
-    };
-  
-    try {
-      const audioFileUri = await vscode.window.showOpenDialog(options);
-      if (audioFileUri && audioFileUri[0]) {
-        const audioFilePath = audioFileUri[0].fsPath;
-        let openaiApiKey = context.globalState.get<string>('openaiApiKey');
-        const apiKey = openaiApiKey;
-        const apiUrl = 'https://api.openai.com/v1/audio/transcriptions';
-  
-        const config = {
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'multipart/form-data',
-          },
-        };
-  
-        const audioFile = fs.readFileSync(audioFilePath);
-        const audioBlob = new Blob([audioFile]);
-  
-        const formData = new FormData();
-        formData.append('model', 'whisper-1');
-        formData.append('file', audioBlob, path.basename(audioFilePath));
-  
-        const response = await axios.post(apiUrl, formData, config);
-        const transcript = response.data.text;
-  
-        const outputChannel = vscode.window.createOutputChannel('Transcription');
-        outputChannel.appendLine(transcript);
-        outputChannel.show();
-      } else {
-        vscode.window.showInformationMessage('No audio file selected');
-      }
-    } catch (error) {
-      vscode.window.showErrorMessage('Error transcribing audio');
-      console.error(error);
-    }
-  }
 
 export function deactivate() {}
