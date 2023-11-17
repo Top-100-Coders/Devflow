@@ -89,7 +89,7 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     // Add a command to transcribe audio
-    let transcribeAudioDisposable = vscode.commands.registerCommand('extension.transcribeAudio', async () => {
+    let transcribeAudioDisposable = vscode.commands.registerCommand('transcribeAudio.transcribe', async () => {
         await transcribeAudio(context);
     });
 
@@ -132,7 +132,6 @@ async function transcribeAudio(context: vscode.ExtensionContext) {
         },
       };
 
-
       const audioFile = fs.readFileSync(audioFilePath);
       const audioBlob = new Blob([audioFile]);
 
@@ -146,6 +145,28 @@ async function transcribeAudio(context: vscode.ExtensionContext) {
       const outputChannel = vscode.window.createOutputChannel('Transcription');
       outputChannel.appendLine(transcript);
       outputChannel.show();
+
+      // Retrieve the response history from the global state
+      let responseHistory: ResponseHistoryEntry[] = context.globalState.get('responseHistory') || [];
+
+      // Pass the transcript to generateSetupCommands and display the API response
+      const setupCommands = await generateSetupCommands(apiKey as string, transcript, responseHistory);
+
+      displayApiResponse(setupCommands);
+      const lines = setupCommands.split('\n');
+
+      // Use regular expressions to filter out lines that seem to be commands
+      const commandLines = lines
+      .map(line => line.replace(/^\s*\d+[.)]\s*/, '')) // Remove leading numbers with dot or parenthesis
+      .filter(line => line.trim() !== ''); // Filter out empty lines after removal
+
+      // Join the command lines into a single string
+      let commandString = commandLines.join('\n');
+      //const commandString = commandLines.map(line => line.toLowerCase()).join('\n');
+      // Run the generated commands in the terminal
+      const terminal = vscode.window.createTerminal('DevFlow Running');
+      terminal.sendText(commandString);
+      terminal.show();
     } else {
       vscode.window.showInformationMessage('No audio file selected');
     }
@@ -154,6 +175,7 @@ async function transcribeAudio(context: vscode.ExtensionContext) {
     console.error(error);
   }
 }
+
 
 async function generateSetupCommands(apiKey: string, projectDescription: string, responseHistory: ResponseHistoryEntry[]): Promise<string> {
     const openaiApiEndpoint = 'https://api.openai.com/v1/completions';
