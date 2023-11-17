@@ -2,7 +2,14 @@
   "name": "devflow",
   "displayName": "devflow",
   "description": "devflow",
-  "version": "0.0.1",
+  "author": "mruduljohn,naaji-navas,thepywizard",
+  "icon": "images/devflowlogo.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mruduljohn/Top100-OpenAi-Challenge"
+  },
+  "version": "0.0.15",
+  "publisher": "reverend",
   "engines": {
     "vscode": "^1.84.0"
   },
@@ -14,19 +21,20 @@
   "contributes": {
     "commands": [
       {
-        "command": "hello",
-        "title": "Hello World"
+        "command": "transcribeAudio.transcribe",
+        "title": "Devflow-Transcribe Audio"
       },
       {
         "command": "extension.configureAndSetupProject",
-        "title": "Run DevFlow"
+        "title": "Devflow-Run"
       },
       {
-        "command": "exextension.clearResponseHistory",
-        "title": "DevFlow - Clear Response History"
+        "command": "extension.clearResponseHistory",
+        "title": "Devflow-Clear Response History"
       }
     ]
   },
+
   "scripts": {
     "vscode:prepublish": "npm run package",
     "compile": "webpack",
@@ -39,8 +47,10 @@
     "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {
+    "@types/axios": "^0.14.0",
     "@types/mocha": "^10.0.3",
     "@types/node": "18.x",
+    "@types/node-microphone": "^0.1.4",
     "@types/vscode": "^1.84.0",
     "@typescript-eslint/eslint-plugin": "^6.9.0",
     "@typescript-eslint/parser": "^6.9.0",
@@ -53,15 +63,15 @@
     "webpack": "^5.89.0",
     "webpack-cli": "^5.1.4"
   },
-  "configuration": {
-    "revflowAI.apiKey": {
-      "type": "string",
-      "description": "ChatGPT API key for devflow extension"
-    }
-  },
   "dependencies": {
     "axios": "^1.6.2",
-    "node-fetch": "^3.3.2",
-    "openai": "^4.17.4"
+    "fs": "^0.0.1-security",
+    "media-recorder": "^1.0.0",
+    "node-microphone": "^0.1.6",
+    "node-record-lpcm16": "^1.0.1",
+    "node-whisper": "^2023.9.11",
+    "nodejs-whisper": "^0.1.6",
+    "openai": "^4.19.0",
+    "openai-whisper": "^1.0.2"
   }
 }
