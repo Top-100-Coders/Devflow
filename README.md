@@ -8,7 +8,7 @@ Traditional coding processes often involve time-consuming setup procedures, intr
 
 ## Meet the Team & Assigned Features
 
-### Mrudul John Mathews @mruduljohn:
+### Mrudul John Mathews [@mruduljohn](https://github.com/mruduljohn)
 #### Open AI Environment Extension Management:
 **Objective:**
 The primary objective is to simplify and streamline the management of programming environments within Visual Studio Code using OpenAI-powered prompts. The extension aims to empower users to set up diverse programming environments effortlessly, catering to various languages and frameworks.
@@ -16,7 +16,7 @@ The primary objective is to simplify and streamline the management of programmin
 **Implementation:**
 The extension presents users with a prompt that dynamically adapts to their preferences, allowing them to specify the language, framework, and project type. Leveraging OpenAI, the prompts are intelligently generated and guide users through the steps required for environment setup. Users can easily create Java, React, Python, Vue, or other applications by simply expressing their intentions in natural language. This implementation not only simplifies the initialization process but also ensures a flexible and user-centric approach to environment management within the Visual Studio Code ecosystem.
 
-### Najid Navas @naaji-navas:
+### Najid Navas [@naaji-navas](https://github.com/naaji-navas)
 #### Automated Git Version Control with Command Execution:
 **Objective:**
 The primary goal is to streamline Git version control through natural language prompts, allowing users to interact with their repositories effortlessly. Users can initiate operations such as repository initialization, commit staging, branch creation, and more by expressing their intent in a natural way.
@@ -24,7 +24,7 @@ The primary goal is to streamline Git version control through natural language p
 **Implementation:**
 The extension leverages OpenAI-powered prompts to dynamically generate Git commands based on user input. The system parses and executes these commands in the terminal, automating Git operations seamlessly. Comprehensive user assistance is provided through tooltips, contextual help, and customizable preferences. The extension ensures a secure interaction by incorporating measures for user authentication and credential handling during Git operations, enhancing the overall user experience with a secure and user-friendly approach to version control.
 
-### Jishnu M M @thepywizard:
+### Jishnu M M [@thepywizard](https://github.com/thepywizard)
 #### Prompt-Friendly File Management:
 **Objective:**
 The central objective of this extension is to revolutionize file management within Visual Studio Code by providing users with a prompt-friendly interface. The goal is to simplify and expedite common file-related tasks, enabling users to create, edit, and organize files through natural language prompts. This approach aims to enhance the overall coding experience by reducing manual effort and making file management more accessible.
