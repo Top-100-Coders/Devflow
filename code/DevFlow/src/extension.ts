@@ -1,110 +1,138 @@
-import * as vscode from 'vscode';
-import { exec } from 'child_process';
-import axios from 'axios';
-import * as path from 'path';
-import * as fs from 'fs';
+import * as vscode from "vscode";
+import { exec } from "child_process";
+import axios from "axios";
+import * as path from "path";
+import * as fs from "fs";
 
 // Define a type for response history entries
 interface ResponseHistoryEntry {
-    timestamp: number;
-    response: string;
+  timestamp: number;
+  response: string;
 }
 
 export function activate(context: vscode.ExtensionContext) {
-    // Initialize or retrieve the response history from the global state
-    let responseHistory: ResponseHistoryEntry[] = context.globalState.get('responseHistory') || [];
+  // Initialize or retrieve the response history from the global state
+  let responseHistory: ResponseHistoryEntry[] =
+    context.globalState.get("responseHistory") || [];
 
-    let disposable = vscode.commands.registerCommand('extension.configureAndSetupProject', async () => {
-        // Check if API key is already stored in global state
-        let openaiApiKey = context.globalState.get<string>('openaiApiKey');
+  let disposable = vscode.commands.registerCommand(
+    "extension.configureAndSetupProject",
+    async () => {
+      // Check if API key is already stored in global state
+      let openaiApiKey = context.globalState.get<string>("openaiApiKey");
 
-        if (!openaiApiKey) {
-            // If not stored, prompt the user to enter the API key
-            openaiApiKey = await vscode.window.showInputBox({
-                prompt: 'Enter your OpenAI API key:',
-                password: true,
-            });
-
-            if (!openaiApiKey) {
-                // If the user cancels or doesn't provide a key, exit
-                vscode.window.showWarningMessage('No OpenAI API key entered. Enter a valid API to proceed.');
-                return;
-            }
-
-            // Save the API key to global state for future use
-            context.globalState.update('openaiApiKey', openaiApiKey);
-        }
-
-        // Continue with the project setup
-        const userPrompt = await vscode.window.showInputBox({
-            prompt: 'Enter your prompt:'
+      if (!openaiApiKey) {
+        // If not stored, prompt the user to enter the API key
+        openaiApiKey = await vscode.window.showInputBox({
+          prompt: "Enter your OpenAI API key:",
+          password: true,
         });
 
-        if (userPrompt) {
-            const customPrompt = `The following is the user prompt. You should give the complete code a noob needs to execute line by line,THERE SHOULD NOT BE ANY OTHER CHARACTER BEFORE COMMANDS IN EACH LINE:  "${userPrompt}"`;
-            try {
-                const response = await generateSetupCommands(openaiApiKey, customPrompt, responseHistory);
-
-                // Save the response to response history with a timestamp
-                const timestamp = Date.now();
-                responseHistory.push({ timestamp, response });
-                
-                // Limit the response history to the last two entries
-                responseHistory = responseHistory.slice(-2);
-
-                context.globalState.update('responseHistory', responseHistory);
-
-                // Display the response in a new webview panel
-                displayApiResponse(response);
-
-                const lines = response.split('\n');
-
-                // Use regular expressions to filter out lines that seem to be commands
-                const commandLines = lines
-                .map(line => line.replace(/^\s*\d+[.)]\s*/, '')) // Remove leading numbers with dot or parenthesis
-                .filter(line => line.trim() !== ''); // Filter out empty lines after removal
-
-                // Join the command lines into a single string
-                const commandString = commandLines.join('\n');
-
-                // Run the generated commands in the terminal
-                const terminal = vscode.window.createTerminal('DevFlow Running');
-                terminal.sendText(commandString);
-                terminal.show();
-
-                vscode.window.showInformationMessage('DevFlow Executed!');
-            } catch (error: any) {
-                vscode.window.showErrorMessage(`DevFlow failed to proceed: ${error.message}`);
-            }
-        } else {
-            vscode.window.showWarningMessage('No project description entered. Project setup canceled.');
+        if (!openaiApiKey) {
+          // If the user cancels or doesn't provide a key, exit
+          vscode.window.showWarningMessage(
+            "No OpenAI API key entered. Enter a valid API to proceed."
+          );
+          return;
         }
-    });
 
-    // Add a command to clear the response history
-    let clearHistoryDisposable = vscode.commands.registerCommand('extension.clearResponseHistory', () => {
-        responseHistory = [];
-        context.globalState.update('responseHistory', responseHistory);
-        vscode.window.showInformationMessage('Response history cleared.');
-    });
+        // Save the API key to global state for future use
+        context.globalState.update("openaiApiKey", openaiApiKey);
+      }
 
-    // Add a command to transcribe audio
-    let transcribeAudioDisposable = vscode.commands.registerCommand('transcribeAudio.transcribe', async () => {
-        await transcribeAudio(context);
-    });
+      // Continue with the project setup
+      const userPrompt = await vscode.window.showInputBox({
+        prompt: "Enter your prompt:",
+      });
 
-    context.subscriptions.push(transcribeAudioDisposable);
+      if (userPrompt) {
+        const customPrompt = `The following is the user prompt. You should give the complete code a noob needs to execute line by line,THERE SHOULD NOT BE ANY OTHER CHARACTER BEFORE COMMANDS IN EACH LINE:  "${userPrompt}"`;
+        try {
+          const response = await generateSetupCommands(
+            openaiApiKey,
+            customPrompt,
+            responseHistory
+          );
+
+          // Save the response to response history with a timestamp
+          const timestamp = Date.now();
+          responseHistory.push({ timestamp, response });
+
+          // Limit the response history to the last two entries
+          responseHistory = responseHistory.slice(-2);
+
+          context.globalState.update("responseHistory", responseHistory);
+
+          // Display the response in a new webview panel
+          displayApiResponse(response);
+
+          const lines = response.split("\n");
+
+          // Use regular expressions to filter out lines that seem to be commands
+          const commandLines = lines
+            .map((line) => line.replace(/^\s*\d+[.)]\s*/, "")) // Remove leading numbers with dot or parenthesis
+            .filter((line) => line.trim() !== ""); // Filter out empty lines after removal
+
+          // Join the command lines into a single string
+          const commandString = commandLines.join("\n");
+
+          // Ask for confirmation before executing the commands
+          const executionConfirmed = await executeCommandsInTerminal(
+            commandString
+          );
+
+          // Execute the commands only if the user confirms
+          if (executionConfirmed) {
+            // Run the generated commands in the terminal
+            const terminal = vscode.window.createTerminal("DevFlow Running");
+            terminal.sendText(commandString);
+            terminal.show();
+
+            vscode.window.showInformationMessage("DevFlow Executed!");
+          }
+        } catch (error: any) {
+          vscode.window.showErrorMessage(
+            `DevFlow failed to proceed: ${error.message}`
+          );
+        }
+      } else {
+        vscode.window.showWarningMessage(
+          "No project description entered. Project setup canceled."
+        );
+      }
+    }
+  );
+
+  // Add a command to clear the response history
+  let clearHistoryDisposable = vscode.commands.registerCommand(
+    "extension.clearResponseHistory",
+    () => {
+      responseHistory = [];
+      context.globalState.update("responseHistory", responseHistory);
+      vscode.window.showInformationMessage("Response history cleared.");
+    }
+  );
+
+  // Add a command to transcribe audio
+  let transcribeAudioDisposable = vscode.commands.registerCommand(
+    "transcribeAudio.transcribe",
+    async () => {
+      await transcribeAudio(context);
+    }
+  );
+
+  context.subscriptions.push(transcribeAudioDisposable);
 }
 
 function displayApiResponse(response: string): void {
-    // Get or create the output channel
-    const outputChannel = vscode.window.createOutputChannel('API Response');
+  // Get or create the output channel
+  const outputChannel = vscode.window.createOutputChannel("API Response");
 
-    // Append the response to the output channel
-    outputChannel.appendLine(response);
+  // Append the response to the output channel
+  outputChannel.appendLine(response);
 
-    // Show the output channel
-    outputChannel.show(true);
+  // Show the output channel
+  outputChannel.show(true);
 }
 
 async function transcribeAudio(context: vscode.ExtensionContext) {
@@ -113,7 +141,7 @@ async function transcribeAudio(context: vscode.ExtensionContext) {
     canSelectFolders: false,
     canSelectMany: false,
     filters: {
-      'Audio files': ['wav', 'mp3','ogg'],
+      "Audio files": ["wav", "mp3", "ogg"],
     },
   };
 
@@ -122,13 +150,13 @@ async function transcribeAudio(context: vscode.ExtensionContext) {
     if (audioFileUri && audioFileUri[0]) {
       const audioFilePath = audioFileUri[0].fsPath;
 
-      const apiKey = context.globalState.get<string>('openaiApiKey');
-      const apiUrl = 'https://api.openai.com/v1/audio/transcriptions';
+      const apiKey = context.globalState.get<string>("openaiApiKey");
+      const apiUrl = "https://api.openai.com/v1/audio/transcriptions";
 
       const config = {
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "multipart/form-data",
         },
       };
 
@@ -136,80 +164,118 @@ async function transcribeAudio(context: vscode.ExtensionContext) {
       const audioBlob = new Blob([audioFile]);
 
       const formData = new FormData();
-      formData.append('model', 'whisper-1');
-      formData.append('file', audioBlob, path.basename(audioFilePath));
+      formData.append("model", "whisper-1");
+      formData.append("file", audioBlob, path.basename(audioFilePath));
 
       const response = await axios.post(apiUrl, formData, config);
       const transcript = response.data.text;
 
-      const outputChannel = vscode.window.createOutputChannel('Transcription');
+      const outputChannel = vscode.window.createOutputChannel("Transcription");
       outputChannel.appendLine(transcript);
       outputChannel.show();
 
       // Retrieve the response history from the global state
-      let responseHistory: ResponseHistoryEntry[] = context.globalState.get('responseHistory') || [];
+      let responseHistory: ResponseHistoryEntry[] =
+        context.globalState.get("responseHistory") || [];
 
       // Pass the transcript to generateSetupCommands and display the API response
-      const setupCommands = await generateSetupCommands(apiKey as string, transcript, responseHistory);
+      const setupCommands = await generateSetupCommands(
+        apiKey as string,
+        transcript,
+        responseHistory
+      );
 
       displayApiResponse(setupCommands);
-      const lines = setupCommands.split('\n');
+      const lines = setupCommands.split("\n");
 
       // Use regular expressions to filter out lines that seem to be commands
       const commandLines = lines
-      .map(line => line.replace(/^\s*\d+[.)]\s*/, '')) // Remove leading numbers with dot or parenthesis
-      .filter(line => line.trim() !== ''); // Filter out empty lines after removal
+        .map((line) => line.replace(/^\s*\d+[.)]\s*/, "")) // Remove leading numbers with dot or parenthesis
+        .filter((line) => line.trim() !== ""); // Filter out empty lines after removal
 
       // Join the command lines into a single string
-      let commandString = commandLines.join('\n');
+      let commandString = commandLines.join("\n");
       //const commandString = commandLines.map(line => line.toLowerCase()).join('\n');
-      // Run the generated commands in the terminal
-      const terminal = vscode.window.createTerminal('DevFlow Running');
-      terminal.sendText(commandString);
-      terminal.show();
+
+      // Ask for confirmation before executing the commands
+      const executionConfirmed = await executeCommandsInTerminal(commandString);
+
+      // Execute the commands only if the user confirms
+      if (executionConfirmed) {
+        // Run the generated commands in the terminal
+        const terminal = vscode.window.createTerminal("DevFlow Running");
+        terminal.sendText(commandString);
+        terminal.show();
+      }
     } else {
-      vscode.window.showInformationMessage('No audio file selected');
+      vscode.window.showInformationMessage("No audio file selected");
     }
   } catch (error) {
-    vscode.window.showErrorMessage('Error transcribing audio');
+    vscode.window.showErrorMessage("Error transcribing audio");
     console.error(error);
   }
 }
 
+async function executeCommandsInTerminal(
+  commandString: string
+): Promise<boolean> {
+  // Ask the user for confirmation before executing the commands
+  const userConfirmation = await vscode.window.showInformationMessage(
+    "Do you want to execute the following commands?",
+    { modal: true },
+    "Yes",
+    "No"
+  );
 
-async function generateSetupCommands(apiKey: string, projectDescription: string, responseHistory: ResponseHistoryEntry[]): Promise<string> {
-    const openaiApiEndpoint = 'https://api.openai.com/v1/completions';
-    const prompt = `Understand the user prompt and give ONLY terminal package installation codes. ${projectDescription}`;
-    
-    // Combine the current prompt with the context from response history
-    const context = responseHistory.map(entry => entry.response).join('\n');
-    const combinedPrompt = `${prompt}\n\nPrevious responses:\n${context}`;
+  if (userConfirmation !== "Yes") {
+    vscode.window.showInformationMessage("Command execution canceled.");
+    return false;
+  }
 
-    try {
-        const response = await axios.post(
-            openaiApiEndpoint,
-            {
-                prompt: combinedPrompt,
-                model:"text-davinci-003",
-                max_tokens: 400,
-            },
-            {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`,
-                },
-            }
-        );
+  return true;
+}
 
-        if (!response.data.choices || !Array.isArray(response.data.choices)) {
-            throw new Error('Unexpected OpenAI API response format');
-        }
+async function generateSetupCommands(
+  apiKey: string,
+  projectDescription: string,
+  responseHistory: ResponseHistoryEntry[]
+): Promise<string> {
+  const openaiApiEndpoint = "https://api.openai.com/v1/completions";
+  const prompt = `Understand the user prompt and give ONLY terminal package installation codes. ${projectDescription}`;
 
-        const generatedCommands = response.data.choices.map((choice: any) => choice.text.trim()).join('\n');
-        return generatedCommands;
-    } catch (error: any) {
-        throw new Error(`Failed to generate setup commands from OpenAI API: ${error.message}`);
+  // Combine the current prompt with the context from response history
+  const context = responseHistory.map((entry) => entry.response).join("\n");
+  const combinedPrompt = `${prompt}\n\nPrevious responses:\n${context}`;
+
+  try {
+    const response = await axios.post(
+      openaiApiEndpoint,
+      {
+        prompt: combinedPrompt,
+        model: "gpt-3.5-turbo",
+        max_tokens: 400,
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+      }
+    );
+
+    if (!response.data.choices || !Array.isArray(response.data.choices)) {
+      throw new Error("Unexpected OpenAI API response format");
     }
+
+    const generatedCommands = response.data.choices
+      .map((choice: any) => choice.text.trim())
+      .join("\n");
+    return generatedCommands;
+  } catch (error: any) {
+    throw new Error(
+      `Failed to generate setup commands from OpenAI API: ${error.message}`
+    );
+  }
 }
 
 export function deactivate() {}
