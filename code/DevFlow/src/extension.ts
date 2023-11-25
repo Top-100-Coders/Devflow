@@ -3,11 +3,18 @@ import { exec } from "child_process";
 import axios from "axios";
 import * as path from "path";
 import * as fs from "fs";
+import * as crypto from "crypto";
 
 // Define a type for response history entries
 interface ResponseHistoryEntry {
   timestamp: number;
   response: string;
+}
+
+// Define a type for encrypted API key
+interface EncryptedKey {
+  iv: string;
+  encryptedData: string;
 }
 
 export function activate(context: vscode.ExtensionContext) {
@@ -18,17 +25,18 @@ export function activate(context: vscode.ExtensionContext) {
   let disposable = vscode.commands.registerCommand(
     "extension.configureAndSetupProject",
     async () => {
-      // Check if API key is already stored in global state
-      let openaiApiKey = context.globalState.get<string>("openaiApiKey");
+      // Check if encrypted API key is already stored in global state
+      let encryptedApiKey =
+        context.globalState.get<EncryptedKey>("encryptedApiKey");
 
-      if (!openaiApiKey) {
+      if (!encryptedApiKey) {
         // If not stored, prompt the user to enter the API key
-        openaiApiKey = await vscode.window.showInputBox({
+        const apiKey = await vscode.window.showInputBox({
           prompt: "Enter your OpenAI API key:",
           password: true,
         });
 
-        if (!openaiApiKey) {
+        if (!apiKey) {
           // If the user cancels or doesn't provide a key, exit
           vscode.window.showWarningMessage(
             "No OpenAI API key entered. Enter a valid API to proceed."
@@ -36,9 +44,15 @@ export function activate(context: vscode.ExtensionContext) {
           return;
         }
 
-        // Save the API key to global state for future use
-        context.globalState.update("openaiApiKey", openaiApiKey);
+        // Encrypt the API key before saving it
+        encryptedApiKey = encryptApiKey(apiKey);
+
+        // Save the encrypted API key to global state for future use
+        context.globalState.update("encryptedApiKey", encryptedApiKey);
       }
+
+      // Decrypt the API key for use
+      const openaiApiKey = decryptApiKey(encryptedApiKey);
 
       // Continue with the project setup
       const userPrompt = await vscode.window.showInputBox({
@@ -122,6 +136,43 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(transcribeAudioDisposable);
+}
+
+function encryptApiKey(apiKey: string): EncryptedKey {
+  // Generate a random initialization vector (iv)
+  const iv = crypto.randomBytes(16).toString("hex");
+
+  // Create a cipher using the iv and the API key
+  const cipher = crypto.createCipheriv(
+    "aes-256-cbc",
+    Buffer.from(iv, "hex"),
+    Buffer.from("your-secret-key", "utf-8")
+  );
+
+  // Encrypt the API key and convert it to a hexadecimal string
+  const encryptedData = Buffer.concat([
+    cipher.update(apiKey, "utf-8"),
+    cipher.final(),
+  ]).toString("hex");
+
+  return { iv, encryptedData };
+}
+
+function decryptApiKey(encryptedApiKey: EncryptedKey): string {
+  // Create a decipher using the iv and the API key
+  const decipher = crypto.createDecipheriv(
+    "aes-256-cbc",
+    Buffer.from(encryptedApiKey.iv, "hex"),
+    Buffer.from("your-secret-key", "utf-8")
+  );
+
+  // Decrypt the API key and convert it to a utf-8 string
+  const decryptedData = Buffer.concat([
+    decipher.update(Buffer.from(encryptedApiKey.encryptedData, "hex")),
+    decipher.final(),
+  ]).toString("utf-8");
+
+  return decryptedData;
 }
 
 function displayApiResponse(response: string): void {
@@ -240,7 +291,7 @@ async function generateSetupCommands(
   projectDescription: string,
   responseHistory: ResponseHistoryEntry[]
 ): Promise<string> {
-  const openaiApiEndpoint = "https://api.openai.com/v1/completions";
+  const openaiApiEndpoint = "https://api.openai.com/v1/chat/completions";
   const prompt = `Understand the user prompt and give ONLY terminal package installation codes. ${projectDescription}`;
 
   // Combine the current prompt with the context from response history
